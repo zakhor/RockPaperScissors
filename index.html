@@ -4,7 +4,6 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>じゃんけんゲーム - AI対戦</title>
-    <script src="lib/chart.umd.min.js"></script>
     <style>
         * {
             margin: 0;
@@ -139,11 +138,12 @@
         .hand-button {
             flex: 1;
             padding: 20px;
-            font-size: 3em;
+            font-size: 2em;
             border: 2px outset #808080;
             background: #C0C0C0;
             cursor: pointer;
             font-weight: bold;
+            line-height: 1.5;
         }
 
         .hand-button:hover:not(:disabled) {
@@ -185,6 +185,11 @@
             overflow-y: scroll;
             border: 2px solid black;
             background: white;
+        }
+
+        .history-table-container.fixed-height {
+            height: 300px;
+            max-height: 300px;
         }
 
         .history-table-container::-webkit-scrollbar {
@@ -232,28 +237,6 @@
         .result-win { color: #0000FF; font-weight: bold; }
         .result-lose { color: #FF0000; font-weight: bold; }
         .result-draw { color: #808080; font-weight: bold; }
-
-        .chart-section {
-            background: #F0F0F0;
-            padding: 15px;
-            border: 2px solid #808080;
-        }
-
-        .chart-section h3 {
-            margin-bottom: 10px;
-            color: white;
-            font-size: 1.1em;
-            background: #808080;
-            padding: 5px;
-            border: 1px solid black;
-        }
-
-        #gameChart {
-            max-height: 300px;
-            background: white;
-            border: 2px solid black;
-            padding: 10px;
-        }
 
         .modal {
             display: none;
@@ -351,9 +334,9 @@
                 <div class="buttons-section">
                     <h3>AIの手</h3>
                     <div class="buttons">
-                        <button class="hand-button" id="aiRock" disabled>✊</button>
-                        <button class="hand-button" id="aiPaper" disabled>✋</button>
-                        <button class="hand-button" id="aiScissors" disabled>✌️</button>
+                        <button class="hand-button" id="aiRock" disabled>グー</button>
+                        <button class="hand-button" id="aiScissors" disabled>チョキ</button>
+                        <button class="hand-button" id="aiPaper" disabled>パー</button>
                     </div>
                 </div>
 
@@ -361,25 +344,19 @@
                 <div class="buttons-section">
                     <h3>あなたの手</h3>
                     <div class="buttons">
-                        <button class="hand-button" id="userRock" onclick="playRound('ROCK')">✊</button>
-                        <button class="hand-button" id="userPaper" onclick="playRound('PAPER')">✋</button>
-                        <button class="hand-button" id="userScissors" onclick="playRound('SCISSORS')">✌️</button>
+                        <button class="hand-button" id="userRock" onclick="playRound('ROCK')">グー<br><span style="font-size: 0.4em;">(1/R)</span></button>
+                        <button class="hand-button" id="userScissors" onclick="playRound('SCISSORS')">チョキ<br><span style="font-size: 0.4em;">(2/S)</span></button>
+                        <button class="hand-button" id="userPaper" onclick="playRound('PAPER')">パー<br><span style="font-size: 0.4em;">(3/P)</span></button>
                     </div>
                 </div>
             </div>
 
             <!-- Right Panel -->
             <div class="right-panel">
-                <!-- Chart -->
-                <div class="chart-section">
-                    <h3>累積グラフ（直近10回）</h3>
-                    <canvas id="gameChart"></canvas>
-                </div>
-
                 <!-- History Table -->
                 <div class="history-section">
-                    <h3>対戦履歴（直近10件）</h3>
-                    <div class="history-table-container">
+                    <h3>ハンド履歴</h3>
+                    <div class="history-table-container fixed-height">
                         <table>
                             <thead>
                                 <tr>
@@ -391,6 +368,32 @@
                             </thead>
                             <tbody id="historyTable">
                                 <tr><td colspan="4">まだ対戦履歴がありません</td></tr>
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+
+                <!-- Session Stats -->
+                <div class="history-section">
+                    <h3>セッション記録</h3>
+                    <div style="background: white; border: 2px solid black; padding: 15px; margin-bottom: 10px;">
+                        <div style="text-align: center; font-size: 1.1em;">
+                            <strong>総合勝率:</strong> <span id="totalWinRate" style="font-family: 'Courier New', monospace; font-size: 1.3em; color: #0000FF; font-weight: bold;">0%</span>
+                            <span style="font-size: 0.9em; color: #808080; margin-left: 10px;">(<span id="sessionWins">0</span>勝 <span id="sessionLosses">0</span>敗)</span>
+                        </div>
+                    </div>
+                    <div class="history-table-container">
+                        <table>
+                            <thead>
+                                <tr>
+                                    <th>セッション</th>
+                                    <th>勝ち</th>
+                                    <th>負け</th>
+                                    <th>あいこ</th>
+                                </tr>
+                            </thead>
+                            <tbody id="sessionTable">
+                                <tr><td colspan="4">まだセッション記録がありません</td></tr>
                             </tbody>
                         </table>
                     </div>
@@ -417,9 +420,9 @@
         };
 
         const HAND_SYMBOLS = {
-            ROCK: '✊',
-            PAPER: '✋',
-            SCISSORS: '✌️'
+            ROCK: 'グー',
+            PAPER: 'パー',
+            SCISSORS: 'チョキ'
         };
 
         const HAND_NAMES = {
@@ -441,13 +444,13 @@
             nextAIHand: null // Pre-calculated next AI hand
         };
 
-        let chart = null;
+        let sessionHistory = []; // Array of { sessionNumber, userWins, aiWins, draws, winRate }
 
         // Initialize game
         function initGame() {
-            initChart();
             initHistoryDependency();
             prepareNextAIHand(); // Calculate first AI hand
+            updateSessionTable();
         }
 
         function initHistoryDependency() {
@@ -458,63 +461,6 @@
                     gameState.historyDependency[key] = { ROCK: 0, PAPER: 0, SCISSORS: 0 };
                 }
             }
-        }
-
-        function initChart() {
-            const ctx = document.getElementById('gameChart').getContext('2d');
-            chart = new Chart(ctx, {
-                type: 'line',
-                data: {
-                    labels: [],
-                    datasets: [
-                        {
-                            label: 'あなたの勝ち',
-                            data: [],
-                            borderColor: '#3498db',
-                            backgroundColor: 'rgba(52, 152, 219, 0.1)',
-                            tension: 0.4
-                        },
-                        {
-                            label: 'あなたの負け',
-                            data: [],
-                            borderColor: '#e74c3c',
-                            backgroundColor: 'rgba(231, 76, 60, 0.1)',
-                            tension: 0.4
-                        },
-                        {
-                            label: 'あいこ',
-                            data: [],
-                            borderColor: '#f39c12',
-                            backgroundColor: 'rgba(243, 156, 18, 0.1)',
-                            tension: 0.4
-                        }
-                    ]
-                },
-                options: {
-                    responsive: true,
-                    maintainAspectRatio: true,
-                    devicePixelRatio: window.devicePixelRatio || 2,
-                    scales: {
-                        y: {
-                            beginAtZero: true,
-                            ticks: {
-                                stepSize: 1
-                            }
-                        }
-                    },
-                    plugins: {
-                        legend: {
-                            display: true,
-                            position: 'top',
-                            labels: {
-                                font: {
-                                    size: 14
-                                }
-                            }
-                        }
-                    }
-                }
-            });
         }
 
         // Main game logic
@@ -552,7 +498,6 @@
             updateButtons(aiHand, userHand);
             updateAIAvatar(result);
             updateHistoryTable();
-            updateChart();
 
             // Check for game end
             if (gameState.aiWins >= 30 || gameState.userWins >= 30) {
@@ -824,51 +769,65 @@
             });
         }
 
-        function updateChart() {
-            // Get last 10 rounds
-            const recentHistory = gameState.history.slice(-10);
+        function updateSessionTable() {
+            const tbody = document.getElementById('sessionTable');
+            tbody.innerHTML = '';
 
-            const labels = recentHistory.map(r => r.round);
-            const userWinsData = [];
-            const userLossesData = [];
-            const drawsData = [];
-
-            let cumulativeWins = 0;
-            let cumulativeLosses = 0;
-            let cumulativeDraws = 0;
-
-            // Calculate cumulative values for displayed range
-            const startIndex = Math.max(0, gameState.history.length - 10);
-            if (startIndex > 0) {
-                for (let i = 0; i < startIndex; i++) {
-                    const result = gameState.history[i].result;
-                    if (result === 'USER_WIN') cumulativeWins++;
-                    else if (result === 'AI_WIN') cumulativeLosses++;
-                    else cumulativeDraws++;
-                }
+            if (sessionHistory.length === 0) {
+                tbody.innerHTML = '<tr><td colspan="4">まだセッション記録がありません</td></tr>';
+                updateTotalWinRate();
+                return;
             }
 
-            recentHistory.forEach(round => {
-                if (round.result === 'USER_WIN') cumulativeWins++;
-                else if (round.result === 'AI_WIN') cumulativeLosses++;
-                else cumulativeDraws++;
-
-                userWinsData.push(cumulativeWins);
-                userLossesData.push(cumulativeLosses);
-                drawsData.push(cumulativeDraws);
+            // Show sessions in reverse order (newest first)
+            sessionHistory.slice().reverse().forEach(session => {
+                const row = document.createElement('tr');
+                row.innerHTML = `
+                    <td>${session.sessionNumber}</td>
+                    <td class="result-win">${session.userWins}</td>
+                    <td class="result-lose">${session.aiWins}</td>
+                    <td class="result-draw">${session.draws}</td>
+                `;
+                tbody.appendChild(row);
             });
 
-            chart.data.labels = labels;
-            chart.data.datasets[0].data = userWinsData;
-            chart.data.datasets[1].data = userLossesData;
-            chart.data.datasets[2].data = drawsData;
-            chart.update();
+            updateTotalWinRate();
+        }
+
+        function updateTotalWinRate() {
+            let totalSessionWins = 0;
+            let totalSessionLosses = 0;
+
+            sessionHistory.forEach(session => {
+                if (session.userWins >= 30) {
+                    totalSessionWins++;
+                } else if (session.aiWins >= 30) {
+                    totalSessionLosses++;
+                }
+            });
+
+            const totalSessions = totalSessionWins + totalSessionLosses;
+            const winRate = totalSessions > 0 ? Math.round((totalSessionWins / totalSessions) * 100) : 0;
+
+            document.getElementById('totalWinRate').textContent = winRate + '%';
+            document.getElementById('sessionWins').textContent = totalSessionWins;
+            document.getElementById('sessionLosses').textContent = totalSessionLosses;
         }
 
         function showGameEndModal() {
             const modal = document.getElementById('gameEndModal');
             const title = document.getElementById('modalTitle');
             const message = document.getElementById('modalMessage');
+
+            // Save session to history
+            sessionHistory.push({
+                sessionNumber: sessionHistory.length + 1,
+                userWins: gameState.userWins,
+                aiWins: gameState.aiWins,
+                draws: gameState.draws
+            });
+
+            updateSessionTable();
 
             if (gameState.userWins >= 30) {
                 title.textContent = 'あなたの勝利！';
@@ -898,7 +857,6 @@
             initHistoryDependency();
             updateScores();
             updateHistoryTable();
-            updateChart();
 
             document.querySelectorAll('.hand-button').forEach(btn => btn.classList.remove('selected'));
             document.getElementById('gameEndModal').classList.remove('active');
