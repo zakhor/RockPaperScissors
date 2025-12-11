@@ -56,16 +56,22 @@
             gap: 15px;
         }
 
+        .avatar-score-row {
+            display: flex;
+            gap: 15px;
+            align-items: stretch;
+        }
+
         .ai-avatar {
             width: 200px;
             height: 200px;
             background: #F0F0F0;
             border: 2px solid #808080;
-            margin: 0 auto;
             display: flex;
             align-items: center;
             justify-content: center;
             font-size: 80px;
+            flex-shrink: 0;
         }
 
         .score-board {
@@ -73,6 +79,10 @@
             padding: 15px;
             border: 2px solid #808080;
             text-align: center;
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
         }
 
         .score-board h2 {
@@ -297,6 +307,14 @@
             .game-area {
                 flex-direction: column;
             }
+
+            .avatar-score-row {
+                flex-direction: column;
+            }
+
+            .ai-avatar {
+                margin: 0 auto;
+            }
         }
     </style>
 </head>
@@ -308,31 +326,31 @@
         <div class="game-area">
             <!-- Left Panel -->
             <div class="left-panel">
-                <!-- AI Avatar -->
-                <div class="ai-avatar" id="aiAvatar">😀</div>
-
-                <!-- Score Board -->
-                <div class="score-board">
-                    <h2>スコア</h2>
-                    <div class="scores">
-                        <div class="score-item">
-                            <span class="score-label">AI</span>
-                            <span class="score-value ai" id="aiWins">0</span>
-                        </div>
-                        <div class="score-item">
-                            <span class="score-label">あなた</span>
-                            <span class="score-value user" id="userWins">0</span>
-                        </div>
-                        <div class="score-item">
-                            <span class="score-label">あいこ</span>
-                            <span class="score-value draw" id="draws">0</span>
+                <!-- AI Avatar and Score Board -->
+                <div class="avatar-score-row">
+                    <div class="ai-avatar" id="aiAvatar">😀</div>
+                    <div class="score-board">
+                        <h2>スコア</h2>
+                        <div class="scores">
+                            <div class="score-item">
+                                <span class="score-label">じゃんけんマン</span>
+                                <span class="score-value ai" id="aiWins">0</span>
+                            </div>
+                            <div class="score-item">
+                                <span class="score-label">あなた</span>
+                                <span class="score-value user" id="userWins">0</span>
+                            </div>
+                            <div class="score-item">
+                                <span class="score-label">あいこ</span>
+                                <span class="score-value draw" id="draws">0</span>
+                            </div>
                         </div>
                     </div>
                 </div>
 
                 <!-- AI Buttons -->
                 <div class="buttons-section">
-                    <h3>AIの手</h3>
+                    <h3>じゃんけんマンの手</h3>
                     <div class="buttons">
                         <button class="hand-button" id="aiRock" disabled>グー</button>
                         <button class="hand-button" id="aiScissors" disabled>チョキ</button>
@@ -361,7 +379,7 @@
                             <thead>
                                 <tr>
                                     <th>回数</th>
-                                    <th>AIの手</th>
+                                    <th>じゃんけんマンの手</th>
                                     <th>あなたの手</th>
                                     <th>勝敗</th>
                                 </tr>
@@ -833,8 +851,8 @@
                 title.textContent = 'あなたの勝利！';
                 message.textContent = `おめでとうございます！${gameState.userWins}勝 ${gameState.aiWins}敗 ${gameState.draws}引き分けでした。`;
             } else {
-                title.textContent = 'AIの勝利';
-                message.textContent = `残念！AIが勝ちました。${gameState.userWins}勝 ${gameState.aiWins}敗 ${gameState.draws}引き分けでした。`;
+                title.textContent = 'じゃんけんマンの勝利';
+                message.textContent = `残念！じゃんけんマンが勝ちました。${gameState.userWins}勝 ${gameState.aiWins}敗 ${gameState.draws}引き分けでした。`;
             }
 
             modal.classList.add('active');
@@ -877,9 +895,9 @@
             if (key === '1') {
                 playRound('ROCK');
             } else if (key === '2') {
-                playRound('PAPER');
-            } else if (key === '3') {
                 playRound('SCISSORS');
+            } else if (key === '3') {
+                playRound('PAPER');
             }
             // R, P, S keys (hand-based)
             else if (key === 'r') {
