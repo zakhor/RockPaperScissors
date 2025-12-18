@@ -303,6 +303,26 @@
             border-style: inset;
         }
 
+        /* Hell Mode Styles - Color Inversion */
+        body.hell-mode {
+            filter: invert(1) hue-rotate(180deg);
+            transition: filter 0.5s ease-in-out;
+        }
+
+        body.hell-mode img,
+        body.hell-mode .ai-avatar {
+            filter: invert(1) hue-rotate(180deg);
+        }
+
+        @keyframes flash {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.3; }
+        }
+
+        .flash-effect {
+            animation: flash 0.15s ease-in-out 3;
+        }
+
         @media (max-width: 900px) {
             .game-area {
                 flex-direction: column;
@@ -320,8 +340,8 @@
 </head>
 <body>
     <div class="container">
-        <h1>じゃんけんマンに勝てるかな？</h1>
-        <p style="text-align: center; margin-bottom: 15px; font-weight: bold;">30本先取勝負</p>
+        <h1 id="gameTitle">じゃんけんマンに勝てるかな？</h1>
+        <p id="gameSubtitle" style="text-align: center; margin-bottom: 15px; font-weight: bold;">30本先取勝負</p>
 
         <div class="game-area">
             <!-- Left Panel -->
@@ -449,6 +469,10 @@
             SCISSORS: 'チョキ'
         };
 
+        const HELL_MODE_THRESHOLD = 30; // Player must reach this to enter Hell Mode
+        const HELL_MODE_TARGET = 40; // Player must reach this to win in Hell Mode
+        const AI_WIN_THRESHOLD = 30; // AI always wins at 30
+
         let gameState = {
             round: 0,
             aiWins: 0,
@@ -459,7 +483,8 @@
             aiHandHistory: [], // AI's hand history
             historyDependency: {}, // For history-dependent prediction
             ngramTable: {}, // For pattern prediction
-            nextAIHand: null // Pre-calculated next AI hand
+            nextAIHand: null, // Pre-calculated next AI hand
+            isHellMode: false // Hell Mode flag
         };
 
         let sessionHistory = []; // Array of { sessionNumber, userWins, aiWins, draws, winRate }
@@ -517,8 +542,13 @@
             updateAIAvatar(result);
             updateHistoryTable();
 
+            // Check for Hell Mode transition
+            if (gameState.userWins === HELL_MODE_THRESHOLD && !gameState.isHellMode) {
+                enterHellMode();
+            }
+
             // Check for game end
-            if (gameState.aiWins >= 30 || gameState.userWins >= 30) {
+            if (gameState.aiWins >= AI_WIN_THRESHOLD || gameState.userWins >= HELL_MODE_TARGET) {
                 setTimeout(() => showGameEndModal(), 500);
             } else {
                 // Prepare next AI hand for next round
@@ -723,6 +753,13 @@
             document.getElementById('aiWins').textContent = gameState.aiWins;
             document.getElementById('userWins').textContent = gameState.userWins;
             document.getElementById('draws').textContent = gameState.draws;
+
+            // Update subtitle if in Hell Mode
+            if (gameState.isHellMode) {
+                const remaining = HELL_MODE_TARGET - gameState.userWins;
+                document.getElementById('gameSubtitle').textContent =
+                    `⚠️ ヘルモード！ あと${remaining}勝必要！ ⚠️`;
+            }
         }
 
         function updateButtons(aiHand, userHand) {
@@ -754,6 +791,30 @@
             } else {
                 aiAvatar.textContent = '😐'; // Draw: neutral face
             }
+        }
+
+        function enterHellMode() {
+            gameState.isHellMode = true;
+
+            // Flash effect
+            document.body.classList.add('flash-effect');
+            setTimeout(() => {
+                document.body.classList.remove('flash-effect');
+
+                // Apply Hell Mode color inversion after flash
+                document.body.classList.add('hell-mode');
+
+                // Update AI avatar to show intensity
+                document.getElementById('aiAvatar').textContent = '👿';
+
+                // Update title to Hell Mode
+                document.getElementById('gameTitle').textContent = 'ヘルじゃんけんマンに勝てるかな？';
+
+                // Update subtitle to show Hell Mode
+                const remaining = HELL_MODE_TARGET - gameState.userWins;
+                document.getElementById('gameSubtitle').textContent =
+                    `⚠️ ヘルモード突入！ あと${remaining}勝必要！ ⚠️`;
+            }, 450); // After flash animation completes (0.15s × 3 = 0.45s)
         }
 
         function updateHistoryTable() {
@@ -847,9 +908,12 @@
 
             updateSessionTable();
 
-            if (gameState.userWins >= 30) {
+            if (gameState.userWins >= HELL_MODE_TARGET) {
                 title.textContent = 'あなたの勝利！';
-                message.textContent = `おめでとうございます！${gameState.userWins}勝 ${gameState.aiWins}敗 ${gameState.draws}引き分けでした。`;
+                message.textContent = `おめでとうございます！ヘルじゃんけんマンに勝ちました！\n${gameState.userWins}勝 ${gameState.aiWins}敗 ${gameState.draws}引き分けでした。`;
+            } else if (gameState.userWins >= HELL_MODE_THRESHOLD) {
+                title.textContent = 'ヘルじゃんけんマンの勝利';
+                message.textContent = `残念！ヘルじゃんけんマンが勝ちました。\n${gameState.userWins}勝 ${gameState.aiWins}敗 ${gameState.draws}引き分けでした。`;
             } else {
                 title.textContent = 'じゃんけんマンの勝利';
                 message.textContent = `残念！じゃんけんマンが勝ちました。${gameState.userWins}勝 ${gameState.aiWins}敗 ${gameState.draws}引き分けでした。`;
@@ -869,7 +933,8 @@
                 aiHandHistory: [],
                 historyDependency: {},
                 ngramTable: {},
-                nextAIHand: null
+                nextAIHand: null,
+                isHellMode: false
             };
 
             initHistoryDependency();
@@ -880,6 +945,11 @@
             document.getElementById('gameEndModal').classList.remove('active');
             document.getElementById('aiAvatar').textContent = '😀';
 
+            // Reset Hell Mode styles
+            document.body.classList.remove('hell-mode');
+            document.getElementById('gameTitle').textContent = 'じゃんけんマンに勝てるかな？';
+            document.getElementById('gameSubtitle').textContent = '30本先取勝負';
+
             // Prepare first AI hand for new game
             prepareNextAIHand();
         }
@@ -887,7 +957,7 @@
         // Keyboard controls
         document.addEventListener('keydown', function(event) {
             // Ignore if game is over
-            if (gameState.aiWins >= 30 || gameState.userWins >= 30) return;
+            if (gameState.aiWins >= AI_WIN_THRESHOLD || gameState.userWins >= HELL_MODE_TARGET) return;
 
             const key = event.key.toLowerCase();
 
